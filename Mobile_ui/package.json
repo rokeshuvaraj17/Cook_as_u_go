@@ -1,0 +1,36 @@
+{
+  "name": "mobile_ui",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "scripts": {
+    "reverse:android": "bash scripts/android-reverse.sh",
+    "start": "pkill -f \"expo start\" || true; bash scripts/android-reverse.sh || true; expo start --go --clear --port 8083",
+    "start:localhost": "pkill -f \"expo start\" || true; bash scripts/android-reverse.sh || true; EXPO_PUBLIC_API_URL=\"http://127.0.0.1:5051\" EXPO_PUBLIC_SCAN_API_URL=\"http://127.0.0.1:8000\" expo start --go --localhost --clear --port 8083",
+    "start:tunnel": "pkill -f \"expo start\" || true; expo start --go --tunnel --clear --port 8083",
+    "android": "pkill -f \"expo start\" || true; bash scripts/android-reverse.sh || true; expo start --go --clear --port 8083",
+    "debug:open": "adb shell am start -a android.intent.action.VIEW -d \"exp://127.0.0.1:8083\" host.exp.exponent",
+    "debug:status": "adb devices && adb reverse --list && curl -sS \"http://127.0.0.1:5051/api/health\" && echo && (curl -sS -o /dev/null -w \"scan http=%{http_code}\\n\" \"http://127.0.0.1:8000/docs\" || echo \"scan not reachable on host :8000 (start ScanAndSave / uvicorn)\")",
+    "debug:logs": "adb logcat -T 1 | rg \"ReactNativeJS|MobileAPI|LoginScreen|PantryScreen|Expo\"",
+    "debug:clear-expo": "adb shell am force-stop host.exp.exponent && adb shell pm clear host.exp.exponent",
+    "ios": "expo run:ios",
+    "web": "expo start --web"
+  },
+  "dependencies": {
+    "@expo/vector-icons": "^15.0.3",
+    "@react-native-community/datetimepicker": "^9.1.0",
+    "expo": "~54.0.33",
+    "expo-constants": "~18.0.13",
+    "expo-image-picker": "~17.0.10",
+    "expo-linear-gradient": "~15.0.8",
+    "expo-status-bar": "~3.0.9",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-svg": "15.12.1"
+  },
+  "devDependencies": {
+    "@types/react": "~19.1.0",
+    "typescript": "~5.9.2"
+  },
+  "private": true
+}
