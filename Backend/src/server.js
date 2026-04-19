@@ -9,6 +9,7 @@ const billsRoutes = require('./routes/bills.routes');
 const scanRoutes = require('./routes/scan.routes');
 const userApiSettingsRoutes = require('./routes/user-api-settings.routes');
 const { initDb } = require('./db/initDb');
+const { scanProxyHealthMeta } = require('./config/scanUpstream');
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '5051', 10);
@@ -29,7 +30,12 @@ app.use(morgan('dev'));
 app.use(express.json({ limit: '1mb' }));
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, service: 'kitchen-api', time: new Date().toISOString() });
+  res.json({
+    ok: true,
+    service: 'kitchen-api',
+    time: new Date().toISOString(),
+    ...scanProxyHealthMeta(),
+  });
 });
 
 app.use('/api/auth', authRoutes);

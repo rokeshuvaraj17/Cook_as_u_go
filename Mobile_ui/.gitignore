@@ -16,6 +16,9 @@ expo-env.d.ts
 
 # Android upload keystore secrets (never commit)
 credentials/upload-keystore.properties
+credentials/keystore.properties
+android/keystore.properties
+android/app/upload-keystore.jks
 *.p8
 *.p12
 *.key

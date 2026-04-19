@@ -4,16 +4,12 @@ const express = require('express');
 const multer = require('multer');
 const { requireAuth } = require('../middleware/auth.middleware');
 const userApiSettingsRepo = require('../services/userApiSettingsRepository');
+const { scanServiceBase } = require('../config/scanUpstream');
 
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 18 * 1024 * 1024 },
 });
-
-/** Where ScanAndSave (FastAPI) listens — not the LLM provider URL (that comes from the DB row). */
-function scanServiceBase() {
-  return String(process.env.SCAN_API_URL || 'http://127.0.0.1:8000').replace(/\/$/, '');
-}
 
 const router = express.Router();
 

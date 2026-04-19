@@ -509,7 +509,7 @@ export default function PantryScreen({ onBack, authToken }: Props) {
       const detail = e instanceof Error ? e.message : 'Could not process this receipt right now.';
       // Same Alert for any failure; title distinguishes “your receipt failed OCR” vs “server not there / timeout / network”.
       const infra =
-        /unreachable|timed out|timeout|502|504|network request failed|failed to fetch|ECONNREFUSED|ENOTFOUND/i.test(
+        /unreachable|timed out|timeout|502|504|HTTP 5\d\d|network request failed|failed to fetch|ECONNREFUSED|ENOTFOUND/i.test(
           detail,
         );
       Alert.alert(
@@ -702,11 +702,12 @@ export default function PantryScreen({ onBack, authToken }: Props) {
         <View style={styles.centerFill}>
           <Text style={styles.errorText}>{loadError}</Text>
           <Text style={styles.errorSub}>
-            Check that the kitchen API is running on your Mac (port 5051) and the phone is on the same Wi‑Fi as the
-            computer (default `npm start`). Request URL: {getApiBaseUrl()}
+            If the URL below is your Mac’s LAN IP, the kitchen API must be running on port 5051 and the phone must
+            reach that host (same Wi‑Fi, or USB with `npm run start:localhost` and `npm run reverse:android`). Request
+            URL: {getApiBaseUrl()}
             {'\n'}
-            If you use USB only, run `npm run start:localhost` and `npm run reverse:android`, or set EXPO_PUBLIC_API_URL
-            to your computer’s LAN IP (e.g. http://192.168.1.10:5051).
+            To use the hosted API instead, set EXPO_PUBLIC_API_URL to https://cook-as-u-go.onrender.com (see
+            Mobile_ui/.env.example) or run `npm run start:render`, then restart Metro.
           </Text>
           <Pressable
             onPress={() => {

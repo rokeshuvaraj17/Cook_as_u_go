@@ -2,6 +2,8 @@
 
 The production Android build uses **`https://cook-as-u-go.onrender.com`** as the API base (`EXPO_PUBLIC_API_URL` in `eas.json`). Receipt scanning goes through that backend, which proxies to ScanAndSave (`SCAN_API_URL` on Render).
 
+After deploying the Kitchen API, open **`GET https://cook-as-u-go.onrender.com/api/health`** (or your API host). If **`receipt_scan_proxy_ok`** is **`false`**, receipt scan will return HTTP 502 until you set **`SCAN_API_URL`** on Render to the **public https origin** of a running ScanAndSave service (a second Render Web Service is typical). **`localhost` / `127.0.0.1`** only works when Kitchen and ScanAndSave run on the same machine.
+
 ## One-time: Google Play Console
 
 1. **Developer account** — [play.google.com/console](https://play.google.com/console) ($25 one-time fee).
@@ -33,12 +35,11 @@ The production Android build uses **`https://cook-as-u-go.onrender.com`** as the
 
 ## Upload keystore (Play signing)
 
-- Keystore file (not committed): **`Mobile_ui/credentials/upload-keystore.jks`**
-- Secrets file (not committed): **`Mobile_ui/credentials/upload-keystore.properties`**  
-  Copy from **`credentials/upload-keystore.properties.example`**, set `storePassword`, `keyPassword`, `keyAlias`, and keep `storeFile=../credentials/upload-keystore.jks`.
-- Rebuild: **`./scripts/build-android-play-release.sh`** or **`npm run build:android:play`**
-- `expo prebuild` keeps signing logic via **`plugins/withUploadKeystoreSigning.js`**.
-- **`./gradlew bundleRelease` / `assembleRelease` will fail** if that properties file is missing — Google Play rejects debug-signed AABs, so the project no longer produces a “silent” debug-signed release bundle.
+- Keystore file (not committed): **`Mobile_ui/android/app/upload-keystore.jks`**
+- Secrets file (not committed): **`Mobile_ui/android/keystore.properties`** — `storePassword`, `keyPassword`, `keyAlias`, `storeFile` ( **`storeFile`** is relative to **`android/app/`**, e.g. `upload-keystore.jks`). Template: **`credentials/keystore.properties.example`**.
+- Rebuild: **`./scripts/build-android-play-release.sh`** (runs **`bundleRelease`** + **`assembleRelease`**; optional **`CLEAN_RELEASE=1`** for **`./gradlew clean`**) or **`npm run build:android:play`**
+- `expo prebuild` reapplies signing via **`plugins/withUploadKeystoreSigning.js`**.
+- **`./gradlew bundleRelease` / `assembleRelease` will fail** if `keystore.properties` or the keystore file is missing — avoids uploading a debug-signed AAB to Play by mistake.
 
 ## Local AAB / APK (without EAS)
 

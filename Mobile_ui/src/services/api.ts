@@ -124,13 +124,13 @@ function resolveApiBaseUrlForScanSibling(): string {
 }
 
 export function getApiBaseUrl(): string {
-  if (runtimeKitchenApiOverride) {
-    return runtimeKitchenApiOverride;
-  }
   const fromEnv = readExpoPublicApiUrl();
   if (fromEnv) {
     apiDebug('getApiBaseUrl from EXPO_PUBLIC_API_URL', { value: fromEnv, platform: Platform.OS });
     return finalizeAndroidDevBaseUrl(fromEnv);
+  }
+  if (runtimeKitchenApiOverride) {
+    return runtimeKitchenApiOverride;
   }
   const hostUri = Constants.expoConfig?.hostUri;
   if (hostUri) {
@@ -765,31 +765,50 @@ export async function uploadReceiptForPreview(
     RECEIPT_PREVIEW_TIMEOUT_MS,
     'Receipt scan',
   );
-  const data = await parseJson(res);
+  const rawText = await res.text();
+  let data: Record<string, unknown> = {};
+  try {
+    data = rawText ? (JSON.parse(rawText) as Record<string, unknown>) : {};
+  } catch {
+    data = {};
+  }
   apiDebug('uploadReceiptForPreview response', {
     status: res.status,
     ok: res.ok,
     message: data.message ?? data.detail,
-    itemsCount: Array.isArray((data as { items?: unknown }).items)
-      ? ((data as { items?: unknown[] }).items?.length ?? 0)
-      : -1,
+    itemsCount: Array.isArray(data.items) ? data.items.length : -1,
   });
   if (!res.ok) {
-    throw new Error((data.message as string) || (data.detail as string) || 'Receipt scan failed');
+    const detail = data.detail;
+    let detailStr = '';
+    if (typeof detail === 'string') detailStr = detail.trim();
+    else if (Array.isArray(detail)) {
+      detailStr = detail
+        .map((row) => {
+          if (row && typeof row === 'object' && 'msg' in row) {
+            return String((row as { msg?: unknown }).msg ?? row);
+          }
+          return String(row);
+        })
+        .filter(Boolean)
+        .join('; ');
+    }
+    const msg =
+      (typeof data.message === 'string' && data.message.trim()) ||
+      detailStr ||
+      (rawText.trim().startsWith('{') ? '' : rawText.trim().slice(0, 400));
+    throw new Error(msg || `Receipt scan failed (HTTP ${res.status}).`);
   }
-  const items = Array.isArray((data as { items?: unknown }).items)
-    ? ((data as { items: unknown[] }).items as ScanPreviewItem[])
+  const items = Array.isArray(data.items)
+    ? (data.items as ScanPreviewItem[])
     : [];
   return {
-    merchant: String((data as { merchant?: unknown }).merchant ?? 'Unknown Store'),
-    date: (data as { date?: string | null }).date ?? null,
-    location_text: (data as { location_text?: string | null }).location_text ?? null,
-    total: typeof (data as { total?: unknown }).total === 'number' ? (data as { total?: number }).total! : null,
-    subtotal:
-      typeof (data as { subtotal?: unknown }).subtotal === 'number'
-        ? (data as { subtotal?: number }).subtotal!
-        : null,
-    tax: typeof (data as { tax?: unknown }).tax === 'number' ? (data as { tax?: number }).tax! : null,
+    merchant: String(data.merchant ?? 'Unknown Store'),
+    date: (data.date as string | null | undefined) ?? null,
+    location_text: (data.location_text as string | null | undefined) ?? null,
+    total: typeof data.total === 'number' ? data.total : null,
+    subtotal: typeof data.subtotal === 'number' ? data.subtotal : null,
+    tax: typeof data.tax === 'number' ? data.tax : null,
     items,
   };
 }

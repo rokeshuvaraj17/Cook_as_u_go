@@ -1,6 +1,6 @@
 {
   "name": "mobile_ui",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "main": "index.ts",
   "scripts": {
     "reverse:android": "bash scripts/android-reverse.sh",
@@ -10,6 +10,7 @@
     "start": "pkill -f \"expo start\" || true; bash scripts/android-reverse.sh || true; expo start --go --lan --port 8083",
     "start:clean": "pkill -f \"expo start\" || true; bash scripts/android-reverse.sh || true; expo start --go --lan --clear --port 8083",
     "start:localhost": "pkill -f \"expo start\" || true; bash scripts/android-reverse.sh || true; EXPO_PUBLIC_API_URL=\"http://127.0.0.1:5051\" EXPO_PUBLIC_SCAN_API_URL=\"http://127.0.0.1:8000\" expo start --go --localhost --port 8083",
+    "start:render": "pkill -f \"expo start\" || true; EXPO_PUBLIC_API_URL=\"https://cook-as-u-go.onrender.com\" expo start --go --lan --port 8083",
     "start:tunnel": "pkill -f \"expo start\" || true; expo start --go --tunnel --port 8083",
     "android": "pkill -f \"expo start\" || true; bash scripts/android-reverse.sh || true; expo start --go --lan --port 8083",
     "debug:open": "adb shell am start -a android.intent.action.VIEW -d \"exp://127.0.0.1:8083\" host.exp.exponent",

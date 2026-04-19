@@ -1,0 +1,5 @@
+App launcher / splash artwork: custom graphic supplied by the app author
+(stored as assets/brand-source.png). Replace this file if you change the icon.
+
+If you did not create the image yourself, keep proof of license or commercial
+use rights from the designer or tool you used (e.g. stock, AI platform terms).
