@@ -65,19 +65,13 @@ export default function LoginScreen({
 
     setBusy(true);
     clearBanner();
-    console.log('[LoginScreen] submit start', { email: email.trim() });
     try {
       const session = await loginUser({ email: email.trim(), password });
-      console.log('[LoginScreen] login success', { userId: session.user?.id, email: session.user?.email });
       onSignedIn(session);
     } catch (e) {
-      console.log('[LoginScreen] login failed', {
-        error: e instanceof Error ? e.message : String(e),
-      });
       setBanner(e instanceof Error ? e.message : 'Login failed');
       setBannerErr(true);
     } finally {
-      console.log('[LoginScreen] submit end');
       setBusy(false);
     }
   };

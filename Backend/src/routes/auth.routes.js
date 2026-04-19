@@ -2,6 +2,7 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const { hashPassword, verifyPassword } = require('../utils/password.util');
 const userRepository = require('../services/userRepository');
+const { requireAuth } = require('../middleware/auth.middleware');
 
 const router = express.Router();
 
@@ -69,6 +70,35 @@ router.post('/login', async (req, res) => {
     }
     console.error(e);
     return res.status(500).json({ message: 'Login failed.' });
+  }
+});
+
+router.post('/change-password', requireAuth, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body || {};
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: 'currentPassword and newPassword are required.' });
+    }
+    if (String(newPassword).length < 8) {
+      return res.status(400).json({ message: 'New password must be at least 8 characters.' });
+    }
+    const user = await userRepository.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+    const match = await verifyPassword(currentPassword, user.password_hash);
+    if (!match) {
+      return res.status(401).json({ message: 'Current password is incorrect.' });
+    }
+    const passwordHash = await hashPassword(newPassword);
+    const ok = await userRepository.updatePasswordHash(req.userId, passwordHash);
+    if (!ok) {
+      return res.status(500).json({ message: 'Could not update password.' });
+    }
+    return res.status(200).json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ message: 'Password change failed.' });
   }
 });
 

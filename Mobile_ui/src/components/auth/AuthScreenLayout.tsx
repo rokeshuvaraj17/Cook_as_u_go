@@ -48,6 +48,7 @@ export default function AuthScreenLayout({
           keyboardVerticalOffset={Platform.OS === 'ios' ? 6 : 0}
         >
           <ScrollView
+            style={styles.scroll}
             contentContainerStyle={[
               styles.scrollContent,
               { paddingBottom: space.xxl + insets.bottom },
@@ -140,6 +141,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   kav: {
+    flex: 1,
+  },
+  /** Required on Android so the sheet + form are laid out inside a flex parent (otherwise only the hero can show). */
+  scroll: {
     flex: 1,
   },
   scrollContent: {

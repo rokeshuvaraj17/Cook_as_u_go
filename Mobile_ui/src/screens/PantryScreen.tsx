@@ -494,13 +494,8 @@ export default function PantryScreen({ onBack, authToken }: Props) {
 
   const finishScanWithUri = useCallback(async (uri: string | null) => {
     if (!uri) return;
-    console.log('[PantryScreen] finishScanWithUri start', { uri });
     try {
       const preview = await uploadReceiptForPreview(authToken, uri);
-      console.log('[PantryScreen] scan preview success', {
-        merchant: preview.merchant,
-        itemCount: preview.items?.length ?? 0,
-      });
       setScanMerchant(preview.merchant || 'Scanned receipt');
       setScanBilledAt(preview.date || '');
       setScanLocationText(preview.location_text || '');
@@ -511,20 +506,20 @@ export default function PantryScreen({ onBack, authToken }: Props) {
       setBillPreviewUri(uri);
       setBillPreviewOpen(true);
     } catch (e) {
-      console.log('[PantryScreen] scan preview failed', {
-        error: e instanceof Error ? e.message : String(e),
-      });
+      const detail = e instanceof Error ? e.message : 'Could not process this receipt right now.';
+      // Same Alert for any failure; title distinguishes “your receipt failed OCR” vs “server not there / timeout / network”.
+      const infra =
+        /unreachable|timed out|timeout|502|504|network request failed|failed to fetch|ECONNREFUSED|ENOTFOUND/i.test(
+          detail,
+        );
       Alert.alert(
-        'Scan failed',
-        `${
-          e instanceof Error ? e.message : 'Could not process this receipt right now.'
-        }\n\nKitchen API (receipt preview): ${getApiBaseUrl()}/api/scan/receipt-preview`
+        infra ? 'Receipt scan unavailable' : 'Scan failed',
+        `${detail}\n\nKitchen API (receipt proxy): ${getApiBaseUrl().replace(/\/$/, '')}/api/scan/receipt-preview`,
       );
     }
   }, [authToken]);
 
   const onScanBill = useCallback(() => {
-    console.log('[PantryScreen] onScanBill pressed', { scanBusy, platform: Platform.OS });
     if (scanBusy) return;
     if (Platform.OS === 'web') {
       void (async () => {

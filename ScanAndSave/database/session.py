@@ -1,9 +1,12 @@
+import os
+from pathlib import Path
+
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
-import os
-from dotenv import load_dotenv
 
-load_dotenv()
+# Same .env as ScanAndSave/config.py (package root), regardless of process cwd.
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
 

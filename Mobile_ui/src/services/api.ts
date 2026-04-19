@@ -1,9 +1,14 @@
 import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeModules, Platform } from 'react-native';
 
 const DEFAULT_PORT = 5051;
 const DEFAULT_SCAN_PORT = 8000;
-const DEBUG_API = true;
+const DEBUG_API = false;
+const API_OVERRIDE_KITCHEN_KEY = 'kitchen_api_override';
+const API_OVERRIDE_SCAN_KEY = 'scan_api_override';
+let runtimeKitchenApiOverride: string | null = null;
+let runtimeScanApiOverride: string | null = null;
 
 function apiDebug(label: string, meta?: unknown) {
   if (!DEBUG_API) return;
@@ -84,19 +89,6 @@ function scanBaseFromResolvedKitchenHost(): string | null {
  * Skips EXPO_PUBLIC loopback on Android physical so sibling scan matches a reachable API host.
  */
 function resolveApiBaseUrlForScanSibling(): string {
-  const rawEnv = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
-  const useEnv =
-    rawEnv &&
-    !(isPhysicalDevice() && isLoopbackBaseUrl(rawEnv));
-  if (useEnv && rawEnv) {
-    return finalizeAndroidDevBaseUrl(rawEnv);
-  }
-  const fromExtra = String(
-    (Constants.expoConfig?.extra as { apiUrl?: string } | undefined)?.apiUrl ?? ''
-  ).trim();
-  if (fromExtra) {
-    return finalizeAndroidDevBaseUrl(fromExtra.replace(/\/$/, ''));
-  }
   const hostUri = Constants.expoConfig?.hostUri;
   if (hostUri) {
     const host = hostUri.split(':')[0];
@@ -117,25 +109,8 @@ function resolveApiBaseUrlForScanSibling(): string {
 }
 
 export function getApiBaseUrl(): string {
-  const rawEnv = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
-  const useEnv =
-    rawEnv && !(isPhysicalDevice() && isLoopbackBaseUrl(rawEnv));
-  if (useEnv && rawEnv) {
-    apiDebug('getApiBaseUrl from EXPO_PUBLIC_API_URL', { value: rawEnv, platform: Platform.OS });
-    return finalizeAndroidDevBaseUrl(rawEnv);
-  }
-  if (rawEnv && isPhysicalDevice() && isLoopbackBaseUrl(rawEnv)) {
-    apiDebug('getApiBaseUrl skip EXPO_PUBLIC loopback on physical device', {
-      ignored: rawEnv,
-      platform: Platform.OS,
-    });
-  }
-  const fromExtra = String(
-    (Constants.expoConfig?.extra as { apiUrl?: string } | undefined)?.apiUrl ?? ''
-  ).trim();
-  if (fromExtra) {
-    apiDebug('getApiBaseUrl from expo.extra.apiUrl', { value: fromExtra, platform: Platform.OS });
-    return finalizeAndroidDevBaseUrl(fromExtra.replace(/\/$/, ''));
+  if (runtimeKitchenApiOverride) {
+    return runtimeKitchenApiOverride;
   }
   const hostUri = Constants.expoConfig?.hostUri;
   if (hostUri) {
@@ -156,7 +131,18 @@ export function getApiBaseUrl(): string {
     const v = isAndroidEmulator()
       ? `http://10.0.2.2:${DEFAULT_PORT}`
       : `http://127.0.0.1:${DEFAULT_PORT}`;
-    apiDebug('getApiBaseUrl android fallback', { value: v, platform: Platform.OS });
+    if (!isAndroidEmulator() && isPhysicalDevice()) {
+      apiDebug('getApiBaseUrl android fallback (physical phone using loopback)', {
+        value: v,
+        fix: [
+          'Use: npm start (includes --lan) so Metro host is your Wi-Fi IP, not 127.0.0.1.',
+          'Or USB: adb reverse tcp:5051 tcp:5051 then EXPO_PUBLIC_API_URL=http://127.0.0.1:5051 with expo --localhost.',
+          'Or set Mobile_ui/.env: EXPO_PUBLIC_API_URL=http://<your-computer-LAN-IP>:5051',
+        ],
+      });
+    } else {
+      apiDebug('getApiBaseUrl android fallback', { value: v, platform: Platform.OS });
+    }
     return finalizeAndroidDevBaseUrl(v);
   }
   const v = `http://127.0.0.1:${DEFAULT_PORT}`;
@@ -165,25 +151,8 @@ export function getApiBaseUrl(): string {
 }
 
 export function getScanApiBaseUrl(): string {
-  const rawScanEnv = process.env.EXPO_PUBLIC_SCAN_API_URL?.replace(/\/$/, '');
-  const useScanEnv =
-    rawScanEnv && !(isPhysicalDevice() && isLoopbackBaseUrl(rawScanEnv));
-  if (useScanEnv && rawScanEnv) {
-    apiDebug('getScanApiBaseUrl from EXPO_PUBLIC_SCAN_API_URL', { value: rawScanEnv, platform: Platform.OS });
-    return finalizeAndroidDevBaseUrl(rawScanEnv);
-  }
-  if (rawScanEnv && isPhysicalDevice() && isLoopbackBaseUrl(rawScanEnv)) {
-    apiDebug('getScanApiBaseUrl skip EXPO_PUBLIC loopback on physical device', {
-      ignored: rawScanEnv,
-      platform: Platform.OS,
-    });
-  }
-  const fromExtra = String(
-    (Constants.expoConfig?.extra as { scanApiUrl?: string } | undefined)?.scanApiUrl ?? ''
-  ).trim();
-  if (fromExtra) {
-    apiDebug('getScanApiBaseUrl from expo.extra.scanApiUrl', { value: fromExtra, platform: Platform.OS });
-    return finalizeAndroidDevBaseUrl(fromExtra.replace(/\/$/, ''));
+  if (runtimeScanApiOverride) {
+    return runtimeScanApiOverride;
   }
   const fromKitchenHost = scanBaseFromResolvedKitchenHost();
   if (fromKitchenHost) {
@@ -217,9 +186,62 @@ export function getScanApiBaseUrl(): string {
   return finalizeAndroidDevBaseUrl(v);
 }
 
+function normalizeUrlForStorage(url: string): string {
+  return String(url || '').trim().replace(/\/+$/, '');
+}
+
+export async function initializeApiRuntimeOverrides(): Promise<void> {
+  try {
+    const [kitchen, scan] = await Promise.all([
+      AsyncStorage.getItem(API_OVERRIDE_KITCHEN_KEY),
+      AsyncStorage.getItem(API_OVERRIDE_SCAN_KEY),
+    ]);
+    runtimeKitchenApiOverride = kitchen ? normalizeUrlForStorage(kitchen) : null;
+    runtimeScanApiOverride = scan ? normalizeUrlForStorage(scan) : null;
+  } catch {
+    runtimeKitchenApiOverride = null;
+    runtimeScanApiOverride = null;
+  }
+}
+
+export async function setApiRuntimeOverride(apiType: 'kitchen' | 'scan', baseUrl: string): Promise<void> {
+  const normalized = normalizeUrlForStorage(baseUrl);
+  if (!normalized) return;
+  if (apiType === 'kitchen') {
+    runtimeKitchenApiOverride = normalized;
+    await AsyncStorage.setItem(API_OVERRIDE_KITCHEN_KEY, normalized);
+    return;
+  }
+  runtimeScanApiOverride = normalized;
+  await AsyncStorage.setItem(API_OVERRIDE_SCAN_KEY, normalized);
+}
+
+export async function clearApiRuntimeOverride(apiType: 'kitchen' | 'scan'): Promise<void> {
+  if (apiType === 'kitchen') {
+    runtimeKitchenApiOverride = null;
+    await AsyncStorage.removeItem(API_OVERRIDE_KITCHEN_KEY);
+    return;
+  }
+  runtimeScanApiOverride = null;
+  await AsyncStorage.removeItem(API_OVERRIDE_SCAN_KEY);
+}
+
 export type HealthResponse = { ok: boolean; service?: string; time?: string };
 export type AuthUser = { id: string; email: string; name: string };
 export type AuthResponse = { user: AuthUser; token: string };
+export type ApiSetting = {
+  id: string;
+  user_id: string;
+  label: string;
+  api_type: string;
+  provider?: string;
+  model?: string;
+  base_url: string;
+  api_key?: string;
+  is_default: boolean;
+  created_at?: string;
+  updated_at?: string;
+};
 
 async function parseJson(res: Response): Promise<{ message?: string; [k: string]: unknown }> {
   try {
@@ -328,6 +350,135 @@ export async function loginUser(body: {
     throw new Error((data.message as string) || 'Login failed');
   }
   return data as AuthResponse;
+}
+
+export async function changePassword(
+  token: string,
+  body: { currentPassword: string; newPassword: string }
+): Promise<void> {
+  const base = getApiBaseUrl();
+  const res = await fetchWithTimeout(
+    `${base}/api/auth/change-password`,
+    {
+      method: 'POST',
+      headers: kitchenHeaders(token),
+      body: JSON.stringify(body),
+    },
+    API_FETCH_TIMEOUT_MS,
+    'Change password'
+  );
+  const data = await parseJson(res);
+  if (!res.ok) {
+    throw new Error((data.message as string) || 'Failed to change password');
+  }
+}
+
+export async function listUserApiSettings(token: string): Promise<ApiSetting[]> {
+  const base = getApiBaseUrl();
+  const res = await fetchWithTimeout(
+    `${base}/api/user-api-settings`,
+    { headers: kitchenHeaders(token) },
+    API_FETCH_TIMEOUT_MS,
+    'Load API settings'
+  );
+  const data = await parseJson(res);
+  if (!res.ok) {
+    throw new Error((data.message as string) || 'Failed to load API settings');
+  }
+  const items = (data as { items?: unknown }).items;
+  return Array.isArray(items) ? (items as ApiSetting[]) : [];
+}
+
+export async function createUserApiSetting(
+  token: string,
+  body: {
+    label?: string;
+    api_type: string;
+    provider?: string;
+    model?: string;
+    base_url: string;
+    api_key?: string;
+    is_default?: boolean;
+  }
+): Promise<ApiSetting> {
+  const base = getApiBaseUrl();
+  const res = await fetchWithTimeout(
+    `${base}/api/user-api-settings`,
+    {
+      method: 'POST',
+      headers: kitchenHeaders(token),
+      body: JSON.stringify(body),
+    },
+    API_FETCH_TIMEOUT_MS,
+    'Create API setting'
+  );
+  const data = await parseJson(res);
+  if (!res.ok) throw new Error((data.message as string) || 'Failed to create API setting');
+  return (data as { item: ApiSetting }).item;
+}
+
+export async function updateUserApiSetting(
+  token: string,
+  id: string,
+  body: Partial<{
+    label: string;
+    api_type: string;
+    provider: string;
+    model: string;
+    base_url: string;
+    api_key: string;
+    is_default: boolean;
+    clear_api_key: boolean;
+  }>
+): Promise<ApiSetting> {
+  const base = getApiBaseUrl();
+  const res = await fetchWithTimeout(
+    `${base}/api/user-api-settings/${encodeURIComponent(id)}`,
+    {
+      method: 'PATCH',
+      headers: kitchenHeaders(token),
+      body: JSON.stringify(body),
+    },
+    API_FETCH_TIMEOUT_MS,
+    'Update API setting'
+  );
+  const data = await parseJson(res);
+  if (!res.ok) throw new Error((data.message as string) || 'Failed to update API setting');
+  return (data as { item: ApiSetting }).item;
+}
+
+export async function deleteUserApiSetting(token: string, id: string): Promise<void> {
+  const base = getApiBaseUrl();
+  const res = await fetchWithTimeout(
+    `${base}/api/user-api-settings/${encodeURIComponent(id)}`,
+    { method: 'DELETE', headers: kitchenHeaders(token) },
+    API_FETCH_TIMEOUT_MS,
+    'Delete API setting'
+  );
+  if (res.status === 204) return;
+  const data = await parseJson(res);
+  throw new Error((data.message as string) || 'Failed to delete API setting');
+}
+
+export async function setDefaultUserApiSetting(
+  token: string,
+  id: string,
+  apiType: string
+): Promise<ApiSetting> {
+  const base = getApiBaseUrl();
+  const res = await fetchWithTimeout(
+    `${base}/api/user-api-settings/${encodeURIComponent(id)}/set-default`,
+    {
+      method: 'POST',
+      headers: kitchenHeaders(token),
+      body: JSON.stringify({ api_type: apiType }),
+    },
+    API_FETCH_TIMEOUT_MS,
+    'Set default API setting'
+  );
+  const data = await parseJson(res);
+  if (!res.ok) throw new Error((data.message as string) || 'Failed to set default API');
+  return (data as { item: ApiSetting }).item;
 }
 
 export type KitchenItemDto = {
@@ -566,10 +717,7 @@ export async function deleteKitchenItem(token: string, id: string): Promise<void
   throw new Error((data.message as string) || `Failed to delete item (${res.status})`);
 }
 
-/**
- * Sends the receipt image to the kitchen API, which proxies to ScanAndSave (FastAPI).
- * Avoids calling port 8000 from the phone (adb reverse often only covers 5051 reliably).
- */
+/** POST receipt image via kitchen API proxy; LLM key comes from DB (default API settings). */
 export async function uploadReceiptForPreview(
   authToken: string,
   imageUri: string,
@@ -577,7 +725,7 @@ export async function uploadReceiptForPreview(
 ): Promise<ScanPreviewResponse> {
   const base = getApiBaseUrl().replace(/\/$/, '');
   const url = `${base}/api/scan/receipt-preview`;
-  apiDebug('uploadReceiptForPreview request', { url, imageUri });
+  apiDebug('uploadReceiptForPreview', { url });
   const formData = new FormData();
   formData.append('file', {
     uri: imageUri,

@@ -38,7 +38,8 @@
           "photosPermission": "Allow access to photos to add receipt images to your pantry.",
           "cameraPermission": "Allow camera to photograph grocery receipts."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ]
   }
 }

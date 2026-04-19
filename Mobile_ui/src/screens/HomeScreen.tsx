@@ -23,6 +23,7 @@ type Props = {
   onOpenPantry: () => void;
   onOpenBills: () => void;
   onOpenBuyList: () => void;
+  onOpenDrawer: () => void;
 };
 
 type TimeChoice = '10' | '20' | '30' | 'free';
@@ -204,7 +205,7 @@ function dishesForTime(choice: TimeChoice) {
   return DUMMY_DISHES.filter((d) => d.minutes <= cap);
 }
 
-export default function HomeScreen({ session, onSignOut, onOpenPantry, onOpenBills, onOpenBuyList }: Props) {
+export default function HomeScreen({ session, onSignOut, onOpenPantry, onOpenBills, onOpenBuyList, onOpenDrawer }: Props) {
   const { width: winW, height: winH } = useWindowDimensions();
   const [timeChoice, setTimeChoice] = useState<TimeChoice>('20');
   const [recipeDish, setRecipeDish] = useState<Dish | null>(null);
@@ -235,8 +236,18 @@ export default function HomeScreen({ session, onSignOut, onOpenPantry, onOpenBil
         >
         <View style={styles.topBar}>
           <View style={styles.topBarLeft}>
-            <View style={styles.headerPill}>
-              <Text style={styles.headerPillText}>Kitchen</Text>
+            <View style={styles.headerRow}>
+              <Pressable
+                onPress={onOpenDrawer}
+                style={({ pressed }) => [styles.drawerBtnInline, pressed && styles.drawerBtnPressed]}
+                accessibilityRole="button"
+                accessibilityLabel="Open menu drawer"
+              >
+                <Ionicons name="menu-outline" size={20} color={colors.sage} />
+              </Pressable>
+              <View style={styles.headerPill}>
+                <Text style={styles.headerPillText}>Kitchen</Text>
+              </View>
             </View>
             <Text style={styles.title}>Hello, {firstName}</Text>
             <Text style={styles.subLead}>Pick how long you have—we’ll suggest dishes to match.</Text>
@@ -441,13 +452,36 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    marginBottom: space.md,
+  },
+  drawerBtnInline: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceCard,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.ink,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  drawerBtnPressed: {
+    backgroundColor: colors.surfaceInput,
+  },
   headerPill: {
     alignSelf: 'flex-start',
     backgroundColor: colors.sageMuted,
     paddingHorizontal: space.md,
     paddingVertical: space.xs + 2,
     borderRadius: radius.full,
-    marginBottom: space.xl,
   },
   headerPillText: {
     color: colors.sage,

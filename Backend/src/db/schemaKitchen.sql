@@ -86,6 +86,39 @@ CREATE TABLE IF NOT EXISTS bill_items (
 
 CREATE INDEX IF NOT EXISTS idx_bill_items_bill_id ON bill_items (bill_id);
 
+CREATE TABLE IF NOT EXISTS user_api_settings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES app_users (id) ON DELETE CASCADE,
+  label TEXT NOT NULL,
+  api_type TEXT NOT NULL,
+  provider TEXT,
+  model TEXT,
+  base_url TEXT NOT NULL,
+  api_key TEXT,
+  is_default BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE user_api_settings ADD COLUMN IF NOT EXISTS provider TEXT;
+ALTER TABLE user_api_settings ADD COLUMN IF NOT EXISTS model TEXT;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'user_api_settings_api_type_check'
+  ) THEN
+    ALTER TABLE user_api_settings DROP CONSTRAINT user_api_settings_api_type_check;
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_user_api_settings_user_type ON user_api_settings (user_id, api_type, updated_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_user_api_settings_default_per_type
+  ON user_api_settings (user_id, api_type)
+  WHERE is_default = TRUE;
+
 CREATE OR REPLACE FUNCTION kitchen_set_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -98,6 +131,12 @@ $$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS kitchen_items_set_updated_at ON kitchen_items;
 CREATE TRIGGER kitchen_items_set_updated_at
   BEFORE UPDATE ON kitchen_items
+  FOR EACH ROW
+  EXECUTE FUNCTION kitchen_set_updated_at();
+
+DROP TRIGGER IF EXISTS user_api_settings_set_updated_at ON user_api_settings;
+CREATE TRIGGER user_api_settings_set_updated_at
+  BEFORE UPDATE ON user_api_settings
   FOR EACH ROW
   EXECUTE FUNCTION kitchen_set_updated_at();
 

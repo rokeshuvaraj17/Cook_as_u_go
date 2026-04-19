@@ -27,6 +27,17 @@ async function findByEmail(email) {
   return r.rows[0] || null;
 }
 
+async function findById(id) {
+  const r = await query(
+    `SELECT id, email, name, password_hash
+     FROM app_users
+     WHERE id = $1
+     LIMIT 1`,
+    [id]
+  );
+  return r.rows[0] || null;
+}
+
 async function createUser({ email, passwordHash, name }) {
   const key = normalizeEmail(email);
   const displayName = name != null && String(name).trim() ? String(name).trim() : key.split('@')[0];
@@ -46,4 +57,15 @@ async function createUser({ email, passwordHash, name }) {
   }
 }
 
-module.exports = { findByEmail, createUser, toPublic };
+async function updatePasswordHash(userId, passwordHash) {
+  const r = await query(
+    `UPDATE app_users
+     SET password_hash = $2
+     WHERE id = $1
+     RETURNING id`,
+    [userId, passwordHash]
+  );
+  return Boolean(r.rows[0]);
+}
+
+module.exports = { findByEmail, findById, createUser, updatePasswordHash, toPublic };

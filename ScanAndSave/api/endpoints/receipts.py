@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
+from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 from ScanAndSave.api.endpoints.deps import get_database, get_current_user
 from ScanAndSave.schemas.receipt import ReceiptCreate, ReceiptUpdate, ReceiptResponse, ReceiptWithItemsResponse
@@ -13,7 +13,10 @@ import os
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
+
+from ScanAndSave.config import OPENROUTER_API_KEY
+from ScanAndSave.llm_context import pop_llm, push_llm
 
 router = APIRouter()
 pipeline = ReceiptPipeline()
@@ -137,44 +140,63 @@ async def process_receipt(
 
 
 @router.post("/process-receipt-preview/")
-async def process_receipt_preview(file: UploadFile = File(...)):
+async def process_receipt_preview(
+    file: UploadFile = File(...),
+    x_llm_api_key: Annotated[str | None, Header(alias="X-LLM-Api-Key")] = None,
+    x_llm_base_url: Annotated[str | None, Header(alias="X-LLM-Base-Url")] = None,
+    x_llm_model: Annotated[str | None, Header(alias="X-LLM-Model")] = None,
+):
     suffix = Path(file.filename or "").suffix or ".jpg"
     temp_path = None
     result = None
+    api_key = (x_llm_api_key or "").strip() or (OPENROUTER_API_KEY or "").strip()
+    if not api_key:
+        raise HTTPException(
+            status_code=401,
+            detail="Missing LLM API key. Use the mobile app (kitchen API proxy) or pass X-LLM-Api-Key.",
+        )
+    ctx_token = push_llm(
+        api_key=api_key,
+        base_url=(x_llm_base_url or "").strip() or None,
+        model=(x_llm_model or "").strip() or None,
+    )
     try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp:
-            shutil.copyfileobj(file.file, temp)
-            temp_path = temp.name
-        await file.close()
         try:
-            result = pipeline.run(temp_path)
-        except Exception as e:
-            msg = str(e)
-            if "402" in msg and "openrouter.ai" in msg:
-                raise HTTPException(
-                    status_code=502,
-                    detail="OpenRouter request failed (payment/credits). Check OPENROUTER_API_KEY billing and model access.",
-                )
-            raise HTTPException(status_code=500, detail=f"Receipt processing error: {msg}")
-    finally:
-        if temp_path and os.path.exists(temp_path):
+            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp:
+                shutil.copyfileobj(file.file, temp)
+                temp_path = temp.name
+            await file.close()
             try:
-                os.remove(temp_path)
-            except PermissionError:
-                print("Warning: temp file still locked, skipping delete")
+                result = pipeline.run(temp_path)
+            except Exception as e:
+                msg = str(e)
+                if "402" in msg and "openrouter.ai" in msg:
+                    raise HTTPException(
+                        status_code=502,
+                        detail="LLM request failed (payment/credits). Check the API key in app settings and model access.",
+                    )
+                raise HTTPException(status_code=500, detail=f"Receipt processing error: {msg}")
+        finally:
+            if temp_path and os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except PermissionError:
+                    print("Warning: temp file still locked, skipping delete")
 
-    if not result:
-        raise HTTPException(status_code=400, detail="Failed to process receipt")
+        if not result:
+            raise HTTPException(status_code=400, detail="Failed to process receipt")
 
-    return {
-        "merchant": result.get("merchant", "Unknown Store"),
-        "date": result.get("date"),
-        "location_text": result.get("location_text"),
-        "subtotal": result.get("subtotal"),
-        "tax": result.get("tax"),
-        "total": result.get("total"),
-        "items": result.get("items", []),
-    }
+        return {
+            "merchant": result.get("merchant", "Unknown Store"),
+            "date": result.get("date"),
+            "location_text": result.get("location_text"),
+            "subtotal": result.get("subtotal"),
+            "tax": result.get("tax"),
+            "total": result.get("total"),
+            "items": result.get("items", []),
+        }
+    finally:
+        pop_llm(ctx_token)
 
 @router.post("/{receipt_id}/save-to-inventory")
 def save_receipt_to_inventory(

@@ -7,6 +7,7 @@ const authRoutes = require('./routes/auth.routes');
 const kitchenRoutes = require('./routes/kitchen.routes');
 const billsRoutes = require('./routes/bills.routes');
 const scanRoutes = require('./routes/scan.routes');
+const userApiSettingsRoutes = require('./routes/user-api-settings.routes');
 const { initDb } = require('./db/initDb');
 
 const app = express();
@@ -35,6 +36,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/kitchen', kitchenRoutes);
 app.use('/api/bills', billsRoutes);
 app.use('/api/scan', scanRoutes);
+app.use('/api/user-api-settings', userApiSettingsRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({ message: 'Not found' });
@@ -60,7 +62,7 @@ let httpServer;
 
 async function start() {
   await initDb();
-  httpServer = app.listen(PORT);
+  httpServer = app.listen(PORT, '0.0.0.0');
   httpServer.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
       console.error(`Port ${PORT} is already in use (another server is running).`);
@@ -72,7 +74,7 @@ async function start() {
     process.exit(1);
   });
   httpServer.once('listening', () => {
-    console.log(`API listening on http://localhost:${PORT}`);
+    console.log(`API listening on http://0.0.0.0:${PORT} (LAN: use this machine's IP, same port)`);
   });
 }
 
