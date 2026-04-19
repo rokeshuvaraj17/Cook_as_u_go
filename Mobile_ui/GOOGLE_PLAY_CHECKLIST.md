@@ -38,6 +38,7 @@ The production Android build uses **`https://cook-as-u-go.onrender.com`** as the
   Copy from **`credentials/upload-keystore.properties.example`**, set `storePassword`, `keyPassword`, `keyAlias`, and keep `storeFile=../credentials/upload-keystore.jks`.
 - Rebuild: **`./scripts/build-android-play-release.sh`** or **`npm run build:android:play`**
 - `expo prebuild` keeps signing logic via **`plugins/withUploadKeystoreSigning.js`**.
+- **`./gradlew bundleRelease` / `assembleRelease` will fail** if that properties file is missing — Google Play rejects debug-signed AABs, so the project no longer produces a “silent” debug-signed release bundle.
 
 ## Local AAB / APK (without EAS)
 

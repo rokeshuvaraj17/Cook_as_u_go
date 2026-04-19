@@ -1,64 +1,103 @@
 /**
- * Injects release signing from upload-keystore.properties (or Gradle -P props)
- * so Play-ready AAB/APK work after expo prebuild.
+ * Play / release signing: configuration phase (after android {}), not afterEvaluate.
  */
 const { withAppBuildGradle } = require('@expo/config-plugins');
 
-const MARKER = '// @generated cook-as-u-go upload keystore signing';
+const L0 = '// @generated cook-as-u-go UPLOAD_KS_LOADER_START';
+const L1 = '// @generated cook-as-u-go UPLOAD_KS_LOADER_END';
+const A0 = '// @generated cook-as-u-go UPLOAD_KS_APPLY_START';
+const A1 = '// @generated cook-as-u-go UPLOAD_KS_APPLY_END';
 
-function appendSigningBlock(contents) {
-  if (contents.includes(MARKER)) {
-    return contents;
-  }
-  return `${contents.trimEnd()}
+function stripMarkers(contents) {
+  return contents
+    .replace(new RegExp(`${escapeRe(L0)}[\\s\\S]*?${escapeRe(L1)}\\n?`, 'm'), '')
+    .replace(new RegExp(`${escapeRe(A0)}[\\s\\S]*?${escapeRe(A1)}\\n?`, 'm'), '');
+}
 
-${MARKER}
-afterEvaluate {
-    def props = new Properties()
-    def propsFile = null
-    def androidDir = rootProject.projectDir
-    def candidates = [
-        new File(androidDir, "upload-keystore.properties"),
-        new File(androidDir.parentFile, "credentials/upload-keystore.properties")
-    ]
-    for (def f : candidates) {
-        if (f.exists()) {
-            propsFile = f
-            break
+function escapeRe(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function injectSigning(contents) {
+  let out = stripMarkers(contents);
+  if (out.includes(L0) || out.includes(A0)) return out;
+
+  const loader = `
+${L0}
+def __uploadKsProps = new Properties()
+def __uploadKsFile = rootProject.file("upload-keystore.properties")
+if (!__uploadKsFile.exists()) {
+    __uploadKsFile = rootProject.file("../credentials/upload-keystore.properties")
+}
+if (__uploadKsFile.exists()) {
+    __uploadKsFile.withReader("UTF-8") { __uploadKsProps.load(it) }
+}
+def __storePass = project.findProperty("uploadStorePassword") ?: __uploadKsProps.getProperty("storePassword")
+def __keyPass = project.findProperty("uploadKeyPassword") ?: __uploadKsProps.getProperty("keyPassword")
+def __keyAlias = project.findProperty("uploadKeyAlias") ?: __uploadKsProps.getProperty("keyAlias")
+def __storeRel = project.findProperty("uploadStoreFile") ?: __uploadKsProps.getProperty("storeFile")
+def __uploadKsReady = false
+if (__storePass != null && __keyPass != null && __keyAlias != null && __storeRel != null) {
+    def __sf = rootProject.file(__storeRel.toString())
+    if (__sf.isFile()) {
+        __uploadKsReady = true
+    } else {
+        throw new java.io.FileNotFoundException("Upload keystore missing: " + __sf + " (storeFile is relative to android/)")
+    }
+}
+${L1}
+`;
+
+  const apply = `
+${A0}
+if (__uploadKsReady) {
+    if (android.signingConfigs.findByName("releaseUpload") == null) {
+        android.signingConfigs.create("releaseUpload") {
+            storeFile rootProject.file(__storeRel.toString())
+            storePassword __storePass.toString()
+            keyAlias __keyAlias.toString()
+            keyPassword __keyPass.toString()
         }
     }
-    if (propsFile != null) {
-        propsFile.withReader("UTF-8") { props.load(it) }
+    android.buildTypes.release.signingConfig = android.signingConfigs.getByName("releaseUpload")
+}
+
+gradle.taskGraph.whenReady { graph ->
+    def needsReleaseArtifact = graph.allTasks.any { t ->
+        def n = t.name
+        n == "bundleRelease" || n == "assembleRelease" || n == "packageRelease" || n.endsWith("ReleaseBundle")
     }
-    def storePass = project.findProperty("uploadStorePassword") ?: props.getProperty("storePassword")
-    def keyPass = project.findProperty("uploadKeyPassword") ?: props.getProperty("keyPassword")
-    def keyAliasVal = project.findProperty("uploadKeyAlias") ?: props.getProperty("keyAlias")
-    def storeRel = project.findProperty("uploadStoreFile") ?: props.getProperty("storeFile")
-    if (storePass == null || keyPass == null || keyAliasVal == null || storeRel == null) {
-        return
+    if (needsReleaseArtifact && !__uploadKsReady) {
+        throw new GradleException(
+            "Google Play rejects debug-signed bundles. Add credentials/upload-keystore.properties (see upload-keystore.properties.example) or pass -PuploadStorePassword -PuploadKeyPassword -PuploadKeyAlias -PuploadStoreFile=../credentials/upload-keystore.jks"
+        )
     }
-    if (android.signingConfigs.findByName("releaseUpload") != null) {
-        android.buildTypes.release.signingConfig = android.signingConfigs.releaseUpload
-        return
+}
+${A1}
+`;
+
+  const jscAnchor = "def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'";
+  if (!out.includes(jscAnchor)) {
+    throw new Error('withUploadKeystoreSigning: jscFlavor anchor not found');
+  }
+  out = out.replace(jscAnchor, jscAnchor + loader);
+
+  const postAndroidAnchor = `    androidResources {
+        ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
     }
-    def storePath = new File(androidDir, storeRel.toString())
-    if (!storePath.isFile()) {
-        throw new RuntimeException("Upload keystore not found: " + storePath + " (storeFile is relative to android/)")
-    }
-    android.signingConfigs.create("releaseUpload") {
-        storeFile storePath
-        storePassword storePass.toString()
-        keyAlias keyAliasVal.toString()
-        keyPassword keyPass.toString()
-    }
-    android.buildTypes.release.signingConfig = android.signingConfigs.releaseUpload
 }
 `;
+
+  if (!out.includes(postAndroidAnchor)) {
+    throw new Error('withUploadKeystoreSigning: androidResources anchor not found');
+  }
+  out = out.replace(postAndroidAnchor, postAndroidAnchor + apply);
+  return out;
 }
 
 module.exports = function withUploadKeystoreSigning(config) {
   return withAppBuildGradle(config, (modConfig) => {
-    modConfig.modResults.contents = appendSigningBlock(modConfig.modResults.contents);
+    modConfig.modResults.contents = injectSigning(modConfig.modResults.contents);
     return modConfig;
   });
-}
+};
