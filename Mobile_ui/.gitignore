@@ -13,6 +13,9 @@ expo-env.d.ts
 .kotlin/
 *.orig.*
 *.jks
+
+# Android upload keystore secrets (never commit)
+credentials/upload-keystore.properties
 *.p8
 *.p12
 *.key

@@ -31,6 +31,14 @@ The production Android build uses **`https://cook-as-u-go.onrender.com`** as the
 - **EAS** can manage Play signing (`eas credentials`). On first `eas build`, follow prompts to create or use a keystore.
 - For **Play App Signing**, Google re-signs the AAB; upload key is separate from the app signing key.
 
+## Upload keystore (Play signing)
+
+- Keystore file (not committed): **`Mobile_ui/credentials/upload-keystore.jks`**
+- Secrets file (not committed): **`Mobile_ui/credentials/upload-keystore.properties`**  
+  Copy from **`credentials/upload-keystore.properties.example`**, set `storePassword`, `keyPassword`, `keyAlias`, and keep `storeFile=../credentials/upload-keystore.jks`.
+- Rebuild: **`./scripts/build-android-play-release.sh`** or **`npm run build:android:play`**
+- `expo prebuild` keeps signing logic via **`plugins/withUploadKeystoreSigning.js`**.
+
 ## Local AAB / APK (without EAS)
 
 From `Mobile_ui`, after `npx expo prebuild --platform android`, Gradle can produce:

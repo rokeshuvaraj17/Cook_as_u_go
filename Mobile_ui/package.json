@@ -24,7 +24,8 @@
     "eas:configure": "eas build:configure",
     "eas:android:production": "eas build --platform android --profile production",
     "eas:android:preview": "eas build --platform android --profile preview",
-    "eas:submit:android": "eas submit --platform android --profile production"
+    "eas:submit:android": "eas submit --platform android --profile production",
+    "build:android:play": "bash scripts/build-android-play-release.sh"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
