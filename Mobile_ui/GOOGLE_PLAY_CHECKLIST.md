@@ -31,6 +31,16 @@ The production Android build uses **`https://cook-as-u-go.onrender.com`** as the
 - **EAS** can manage Play signing (`eas credentials`). On first `eas build`, follow prompts to create or use a keystore.
 - For **Play App Signing**, Google re-signs the AAB; upload key is separate from the app signing key.
 
+## Local AAB / APK (without EAS)
+
+From `Mobile_ui`, after `npx expo prebuild --platform android`, Gradle can produce:
+
+- `android/app/build/outputs/bundle/release/app-release.aab`
+- `android/app/build/outputs/apk/release/app-release.apk`
+
+Convenience copies (when you run a local build) can go under **`Mobile_ui/dist/`** (gitignored).  
+**Signing:** the default Expo/React Native template signs **release** with the **debug** keystore. Google Play may reject that AAB for production; use **`eas build`** (production profile) for a Play-ready signed bundle.
+
 ## Expo / EAS commands
 
 ```bash
