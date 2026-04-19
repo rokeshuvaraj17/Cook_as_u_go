@@ -5,6 +5,21 @@ import { NativeModules, Platform } from 'react-native';
 const DEFAULT_PORT = 5051;
 const DEFAULT_SCAN_PORT = 8000;
 const DEBUG_API = false;
+
+/** Set at build time (EAS `env` or `.env`) for store / production; must be full origin, no trailing slash. */
+function readExpoPublicApiUrl(): string | null {
+  try {
+    const raw =
+      typeof process !== 'undefined' && process.env.EXPO_PUBLIC_API_URL != null
+        ? String(process.env.EXPO_PUBLIC_API_URL)
+        : '';
+    const trimmed = raw.trim().replace(/\/+$/, '');
+    if (!trimmed) return null;
+    return trimmed;
+  } catch {
+    return null;
+  }
+}
 const API_OVERRIDE_KITCHEN_KEY = 'kitchen_api_override';
 const API_OVERRIDE_SCAN_KEY = 'scan_api_override';
 let runtimeKitchenApiOverride: string | null = null;
@@ -111,6 +126,11 @@ function resolveApiBaseUrlForScanSibling(): string {
 export function getApiBaseUrl(): string {
   if (runtimeKitchenApiOverride) {
     return runtimeKitchenApiOverride;
+  }
+  const fromEnv = readExpoPublicApiUrl();
+  if (fromEnv) {
+    apiDebug('getApiBaseUrl from EXPO_PUBLIC_API_URL', { value: fromEnv, platform: Platform.OS });
+    return finalizeAndroidDevBaseUrl(fromEnv);
   }
   const hostUri = Constants.expoConfig?.hostUri;
   if (hostUri) {

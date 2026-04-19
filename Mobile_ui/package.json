@@ -20,14 +20,20 @@
     "debug:logs": "adb logcat -T 1 | rg \"ReactNativeJS|MobileAPI|LoginScreen|PantryScreen|Expo\"",
     "debug:clear-expo": "adb shell am force-stop host.exp.exponent && adb shell pm clear host.exp.exponent",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "eas:configure": "eas build:configure",
+    "eas:android:production": "eas build --platform android --profile production",
+    "eas:android:preview": "eas build --platform android --profile preview",
+    "eas:submit:android": "eas submit --platform android --profile production"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
-    "@react-native-async-storage/async-storage": "^3.0.2",
+    "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/datetimepicker": "8.4.4",
     "expo": "~54.0.33",
+    "expo-build-properties": "~1.0.10",
     "expo-constants": "~18.0.13",
+    "expo-font": "~14.0.11",
     "expo-image-picker": "~17.0.10",
     "expo-linear-gradient": "~15.0.8",
     "expo-status-bar": "~3.0.9",
