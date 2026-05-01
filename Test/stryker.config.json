@@ -1,0 +1,29 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "testRunner": "command",
+  "coverageAnalysis": "off",
+  "commandRunner": {
+    "command": "npx jest --config jest.mutation.config.cjs --runInBand"
+  },
+  "mutate": [
+    "mutation-targets/scanUpstream.js"
+  ],
+  "ignorePatterns": [
+    "coverage/**",
+    "reports/**",
+    "node_modules/**",
+    ".stryker-tmp/**"
+  ],
+  "reporters": [
+    "clear-text",
+    "html"
+  ],
+  "thresholds": {
+    "high": 100,
+    "low": 100,
+    "break": 100
+  },
+  "htmlReporter": {
+    "fileName": "reports/mutation/index.html"
+  }
+}
