@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const { hashPassword, verifyPassword } = require('../utils/password.util');
 const userRepository = require('../services/userRepository');
 const { requireAuth } = require('../middleware/auth.middleware');
+const { sendRouteError } = require('../utils/routeError');
 
 const router = express.Router();
 
@@ -39,11 +40,7 @@ router.post('/register', async (req, res) => {
     if (e.message?.includes('JWT_SECRET')) {
       return res.status(500).json({ message: 'Server misconfigured: JWT_SECRET' });
     }
-    if (e.message?.includes('DATABASE_URL')) {
-      return res.status(500).json({ message: 'Server misconfigured: database' });
-    }
-    console.error(e);
-    return res.status(500).json({ message: 'Registration failed.' });
+    return sendRouteError(res, e, 'Registration failed.');
   }
 });
 
@@ -68,8 +65,7 @@ router.post('/login', async (req, res) => {
     if (e.message?.includes('JWT_SECRET')) {
       return res.status(500).json({ message: 'Server misconfigured: JWT_SECRET' });
     }
-    console.error(e);
-    return res.status(500).json({ message: 'Login failed.' });
+    return sendRouteError(res, e, 'Login failed.');
   }
 });
 
@@ -97,8 +93,7 @@ router.post('/change-password', requireAuth, async (req, res) => {
     }
     return res.status(200).json({ ok: true });
   } catch (e) {
-    console.error(e);
-    return res.status(500).json({ message: 'Password change failed.' });
+    return sendRouteError(res, e, 'Password change failed.');
   }
 });
 

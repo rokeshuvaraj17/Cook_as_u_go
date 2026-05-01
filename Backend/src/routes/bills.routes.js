@@ -1,6 +1,7 @@
 const express = require('express');
 const { requireAuth } = require('../middleware/auth.middleware');
 const { saveBillAndPantryItems } = require('../services/billRepository');
+const { sendRouteError } = require('../utils/routeError');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -16,8 +17,7 @@ router.get('/', async (req, res) => {
     });
     return res.json({ bills });
   } catch (e) {
-    console.error(e);
-    return res.status(500).json({ message: 'Failed to load bills.' });
+    return sendRouteError(res, e, 'Failed to load bills.');
   }
 });
 
@@ -34,8 +34,7 @@ router.get('/report', async (req, res) => {
     });
     return res.json({ report });
   } catch (e) {
-    console.error(e);
-    return res.status(500).json({ message: 'Failed to load report.' });
+    return sendRouteError(res, e, 'Failed to load report.');
   }
 });
 
@@ -45,8 +44,7 @@ router.get('/:id', async (req, res) => {
     if (!bill) return res.status(404).json({ message: 'Bill not found.' });
     return res.json({ bill });
   } catch (e) {
-    console.error(e);
-    return res.status(500).json({ message: 'Failed to load bill.' });
+    return sendRouteError(res, e, 'Failed to load bill.');
   }
 });
 
@@ -56,8 +54,7 @@ router.delete('/:id', async (req, res) => {
     if (!ok) return res.status(404).json({ message: 'Bill not found.' });
     return res.status(204).send();
   } catch (e) {
-    console.error(e);
-    return res.status(500).json({ message: 'Failed to delete bill.' });
+    return sendRouteError(res, e, 'Failed to delete bill.');
   }
 });
 
@@ -71,8 +68,7 @@ router.patch('/:id', async (req, res) => {
     if (!bill) return res.status(404).json({ message: 'Bill not found.' });
     return res.json({ bill });
   } catch (e) {
-    console.error(e);
-    return res.status(500).json({ message: 'Failed to update bill.' });
+    return sendRouteError(res, e, 'Failed to update bill.');
   }
 });
 
@@ -84,8 +80,7 @@ router.post('/save-and-add', async (req, res) => {
     if (e.code === 'VALIDATION') {
       return res.status(400).json({ message: e.message });
     }
-    console.error(e);
-    return res.status(500).json({ message: 'Failed to save bill details.' });
+    return sendRouteError(res, e, 'Failed to save bill details.');
   }
 });
 
@@ -97,8 +92,7 @@ router.post('/revert-latest', async (req, res) => {
     }
     return res.json(result);
   } catch (e) {
-    console.error(e);
-    return res.status(500).json({ message: 'Failed to revert latest bill.' });
+    return sendRouteError(res, e, 'Failed to revert latest bill.');
   }
 });
 

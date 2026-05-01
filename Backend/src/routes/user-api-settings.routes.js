@@ -1,6 +1,7 @@
 const express = require('express');
 const { requireAuth } = require('../middleware/auth.middleware');
 const repo = require('../services/userApiSettingsRepository');
+const { sendRouteError } = require('../utils/routeError');
 
 const router = express.Router();
 
@@ -37,8 +38,7 @@ router.get('/', async (req, res) => {
     const items = await repo.listByUser(req.userId);
     return res.json({ items });
   } catch (e) {
-    console.error(e);
-    return res.status(500).json({ message: 'Could not load API settings.' });
+    return sendRouteError(res, e, 'Could not load API settings.');
   }
 });
 
@@ -78,8 +78,7 @@ router.post('/', async (req, res) => {
     }
     return res.status(201).json({ item });
   } catch (e) {
-    console.error(e);
-    return res.status(500).json({ message: 'Could not save API setting.' });
+    return sendRouteError(res, e, 'Could not save API setting.');
   }
 });
 
@@ -111,8 +110,7 @@ router.patch('/:id', async (req, res) => {
     }
     return res.json({ item: updated });
   } catch (e) {
-    console.error(e);
-    return res.status(500).json({ message: 'Could not update API setting.' });
+    return sendRouteError(res, e, 'Could not update API setting.');
   }
 });
 
@@ -129,8 +127,7 @@ router.post('/:id/set-default', async (req, res) => {
     }
     return res.json({ item });
   } catch (e) {
-    console.error(e);
-    return res.status(500).json({ message: 'Could not set default API.' });
+    return sendRouteError(res, e, 'Could not set default API.');
   }
 });
 
@@ -142,8 +139,7 @@ router.delete('/:id', async (req, res) => {
     }
     return res.status(204).send();
   } catch (e) {
-    console.error(e);
-    return res.status(500).json({ message: 'Could not delete API setting.' });
+    return sendRouteError(res, e, 'Could not delete API setting.');
   }
 });
 

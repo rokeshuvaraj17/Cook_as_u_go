@@ -1,4 +1,4 @@
-const { getPool } = require('../db/pool');
+const { query: poolQuery, acquireClient } = require('../db/pool');
 
 const DEFAULT_US_TAX_RATE = Number.parseFloat(process.env.US_DEFAULT_TAX_RATE || '0.0725');
 
@@ -102,9 +102,9 @@ async function saveBillAndPantryItems(userId, payload) {
     throw e;
   }
 
-  const pool = getPool();
-  const client = await pool.connect();
+  let client;
   try {
+    client = await acquireClient();
     await client.query('BEGIN');
 
     const billRes = await client.query(
@@ -192,10 +192,18 @@ async function saveBillAndPantryItems(userId, payload) {
     await client.query('COMMIT');
     return { bill, items: savedItems };
   } catch (e) {
-    await client.query('ROLLBACK');
+    if (client) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (_) {
+        /* ignore */
+      }
+    }
     throw e;
   } finally {
-    client.release();
+    if (client) {
+      client.release();
+    }
   }
 }
 
@@ -234,19 +242,19 @@ async function listBillsByUser(userId, filters = {}) {
     GROUP BY br.id
     ORDER BY COALESCE(br.billed_at, br.created_at) DESC
   `;
-  const r = await getPool().query(q, params);
+  const r = await poolQuery(q, params);
   return r.rows;
 }
 
 async function getBillDetail(userId, billId) {
-  const header = await getPool().query(
+  const header = await poolQuery(
     `SELECT id, merchant_name, billed_at, location_text, subtotal, tax_amount, total_amount, created_at
      FROM bill_records
      WHERE id = $1 AND user_id = $2`,
     [billId, userId]
   );
   if (!header.rows[0]) return null;
-  const items = await getPool().query(
+  const items = await poolQuery(
     `SELECT id, pantry_item_id, raw_name, normalized_name, category, quantity, unit,
             unit_price, line_subtotal, line_tax, line_total, estimated_tax_rate
      FROM bill_items
@@ -258,7 +266,7 @@ async function getBillDetail(userId, billId) {
 }
 
 async function deleteBillByUser(userId, billId) {
-  const r = await getPool().query(
+  const r = await poolQuery(
     `DELETE FROM bill_records
      WHERE id = $1 AND user_id = $2
      RETURNING id`,
@@ -277,7 +285,7 @@ async function updateBillByUser(userId, billId, body = {}) {
   const taxAmount = body.tax_amount != null ? toMoney(body.tax_amount, 0) : null;
   const totalAmount = body.total_amount != null ? toMoney(body.total_amount, 0) : null;
 
-  const current = await getPool().query(
+  const current = await poolQuery(
     `SELECT id, merchant_name, billed_at, location_text, subtotal, tax_amount, total_amount
      FROM bill_records
      WHERE id = $1 AND user_id = $2`,
@@ -290,7 +298,7 @@ async function updateBillByUser(userId, billId, body = {}) {
   const nextTax = taxAmount != null ? taxAmount : toMoney(cur.tax_amount, 0);
   const nextTotal = totalAmount != null ? totalAmount : toMoney(nextSubtotal + nextTax, 0);
 
-  const updated = await getPool().query(
+  const updated = await poolQuery(
     `UPDATE bill_records
      SET merchant_name = $1,
          billed_at = $2,
@@ -350,10 +358,9 @@ function buildReportWhere(userId, filters = {}) {
 }
 
 async function getBillsReport(userId, filters = {}) {
-  const pool = getPool();
   const { where, params } = buildReportWhere(userId, filters);
 
-  const totals = await pool.query(
+  const totals = await poolQuery(
     `SELECT COUNT(DISTINCT br.id)::int AS bills_count,
             COALESCE(SUM(DISTINCT br.total_amount), 0) AS total_spend,
             COALESCE(SUM(DISTINCT br.tax_amount), 0) AS total_tax
@@ -363,7 +370,7 @@ async function getBillsReport(userId, filters = {}) {
     params
   );
 
-  const merchantSpend = await pool.query(
+  const merchantSpend = await poolQuery(
     `SELECT br.merchant_name, COALESCE(SUM(br.total_amount), 0) AS spend
      FROM bill_records br
      LEFT JOIN bill_items bi ON bi.bill_id = br.id
@@ -374,7 +381,7 @@ async function getBillsReport(userId, filters = {}) {
     params
   );
 
-  const topProductsByQty = await pool.query(
+  const topProductsByQty = await poolQuery(
     `SELECT COALESCE(bi.normalized_name, bi.raw_name) AS product,
             COALESCE(SUM(bi.quantity), 0) AS qty
      FROM bill_records br
@@ -386,7 +393,7 @@ async function getBillsReport(userId, filters = {}) {
     params
   );
 
-  const productPriceRows = await pool.query(
+  const productPriceRows = await poolQuery(
     `SELECT COALESCE(bi.normalized_name, bi.raw_name) AS product,
             br.merchant_name,
             bi.unit_price,
@@ -431,9 +438,9 @@ async function getBillsReport(userId, filters = {}) {
 }
 
 async function revertLatestBillByUser(userId) {
-  const pool = getPool();
-  const client = await pool.connect();
+  let client;
   try {
+    client = await acquireClient();
     await client.query('BEGIN');
     const latest = await client.query(
       `SELECT id
@@ -510,10 +517,18 @@ async function revertLatestBillByUser(userId) {
     await client.query('COMMIT');
     return { reverted_bill_id: billId, adjusted_items: adjustedCount };
   } catch (e) {
-    await client.query('ROLLBACK');
+    if (client) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (_) {
+        /* ignore */
+      }
+    }
     throw e;
   } finally {
-    client.release();
+    if (client) {
+      client.release();
+    }
   }
 }
 

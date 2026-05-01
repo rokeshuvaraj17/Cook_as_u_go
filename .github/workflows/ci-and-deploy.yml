@@ -1,0 +1,67 @@
+# Validates Backend + Mobile_ui installs on every PR/push.
+# After a successful push to main, optionally triggers a Render deploy via Deploy Hook.
+#
+# Recommended: In Render → your Web Service → Settings → Build & Deploy → connect this GitHub repo
+# and turn on **Auto-Deploy** for `main` (no hook secret needed).
+#
+# Optional: Render → Deploy Hook → copy URL → GitHub repo → Settings → Secrets → RENDER_DEPLOY_HOOK_URL
+# (only if you prefer hook-based deploys instead of Render’s native GitHub integration).
+
+name: CI (and optional Render hook)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (npm ci)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: Backend/package-lock.json
+      - run: npm ci
+
+  mobile_ui:
+    name: Mobile_ui (npm ci)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Mobile_ui
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: Mobile_ui/package-lock.json
+      - run: npm ci
+
+  deploy-render-hook:
+    name: Trigger Render deploy (optional)
+    needs: [backend]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: POST deploy hook
+        env:
+          DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "${DEPLOY_HOOK_URL:-}" ]; then
+            echo "No RENDER_DEPLOY_HOOK_URL secret — skipping. Use Render dashboard Auto-Deploy from GitHub, or add this secret from Render → Deploy Hook."
+            exit 0
+          fi
+          curl -fsS -X POST "$DEPLOY_HOOK_URL"

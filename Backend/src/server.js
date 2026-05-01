@@ -9,6 +9,7 @@ const billsRoutes = require('./routes/bills.routes');
 const scanRoutes = require('./routes/scan.routes');
 const userApiSettingsRoutes = require('./routes/user-api-settings.routes');
 const { initDb } = require('./db/initDb');
+const { isDbSchemaReady, getDbInitError } = require('./db/dbState');
 const { scanProxyHealthMeta } = require('./config/scanUpstream');
 
 const app = express();
@@ -30,10 +31,15 @@ app.use(morgan('dev'));
 app.use(express.json({ limit: '1mb' }));
 
 app.get('/api/health', (_req, res) => {
+  const dbErr = getDbInitError();
   res.json({
     ok: true,
     service: 'kitchen-api',
     time: new Date().toISOString(),
+    db: {
+      ready: isDbSchemaReady(),
+      ...(dbErr && { error: dbErr.message }),
+    },
     ...scanProxyHealthMeta(),
   });
 });
@@ -53,6 +59,13 @@ app.use((err, _req, res, _next) => {
   if (res.headersSent) {
     return;
   }
+  if (err && err.code === 'DB_UNAVAILABLE') {
+    return res.status(503).json({
+      message:
+        'Database is temporarily unavailable. Check DATABASE_URL / DIRECT_URL and that Postgres is reachable.',
+      code: 'DB_UNAVAILABLE',
+    });
+  }
   if (err && (err.code === 'LIMIT_FILE_SIZE' || err.name === 'MulterError')) {
     return res.status(413).json({ message: 'Upload too large.' });
   }
@@ -61,6 +74,12 @@ app.use((err, _req, res, _next) => {
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('unhandledRejection', promise, reason);
+  process.exit(1);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('uncaughtException', err);
+  process.exit(1);
 });
 
 /** Keep a strong ref so the HTTP server is never GC’d; also used for graceful shutdown. */
@@ -100,6 +119,6 @@ process.once('SIGINT', () => shutdown('SIGINT'));
 process.once('SIGTERM', () => shutdown('SIGTERM'));
 
 start().catch((err) => {
-  console.error('Failed to start:', err.message);
+  console.error('Failed to start HTTP server:', err.message || err);
   process.exit(1);
 });

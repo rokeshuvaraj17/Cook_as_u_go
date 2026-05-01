@@ -36,3 +36,8 @@ Mobile_ui/web-build/
 *.db
 *.sqlite
 *.sqlite3
+
+# Accidental local screenshots / loose assets (keep them out of git)
+Good.png
+Screenshot*.png
+**/Screenshot*.png

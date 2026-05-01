@@ -5,6 +5,7 @@ const multer = require('multer');
 const { requireAuth } = require('../middleware/auth.middleware');
 const userApiSettingsRepo = require('../services/userApiSettingsRepository');
 const { scanServiceBase } = require('../config/scanUpstream');
+const { sendRouteError } = require('../utils/routeError');
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -20,7 +21,13 @@ router.post('/receipt-preview', requireAuth, upload.single('file'), async (req, 
     return res.status(400).json({ message: 'Missing image file (form field: file).' });
   }
 
-  const row = await userApiSettingsRepo.getDefaultLlmForScan(req.userId);
+  let row;
+  try {
+    row = await userApiSettingsRepo.getDefaultLlmForScan(req.userId);
+  } catch (e) {
+    return sendRouteError(res, e, 'Could not load API settings for scan.');
+  }
+
   if (!row?.api_key || !String(row.api_key).trim()) {
     return res.status(400).json({
       message: 'Set a default API with an API key in Menu → API settings before scanning receipts.',

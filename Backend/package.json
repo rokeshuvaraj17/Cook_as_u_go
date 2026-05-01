@@ -4,14 +4,19 @@
   "description": "Express API with bcrypt auth",
   "main": "src/server.js",
   "scripts": {
-    "dev": "nodemon src/server.js",
-    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "dev:nodemon": "nodemon src/server.js",
+    "start": "node scripts/supervise-server.js",
+    "start:plain": "node src/server.js",
     "db:purge": "node scripts/purge-all-data.js",
     "db:reset:seed": "node scripts/reset-and-seed-non-user-data.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "engines": {
+    "node": ">=18.11.0"
+  },
   "type": "commonjs",
   "dependencies": {
     "bcrypt": "^6.0.0",

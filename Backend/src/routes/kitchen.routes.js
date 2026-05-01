@@ -1,6 +1,7 @@
 const express = require('express');
 const { requireAuth } = require('../middleware/auth.middleware');
 const kitchenRepository = require('../services/kitchenRepository');
+const { sendRouteError } = require('../utils/routeError');
 
 const router = express.Router();
 
@@ -11,8 +12,7 @@ router.get('/items', async (req, res) => {
     const items = await kitchenRepository.listByUser(req.userId);
     return res.json({ items });
   } catch (e) {
-    console.error(e);
-    return res.status(500).json({ message: 'Failed to load kitchen items.' });
+    return sendRouteError(res, e, 'Failed to load kitchen items.');
   }
 });
 
@@ -27,8 +27,7 @@ router.post('/items', async (req, res) => {
     if (e.code === '23503') {
       return res.status(400).json({ message: 'Invalid ingredient reference.' });
     }
-    console.error(e);
-    return res.status(500).json({ message: 'Failed to create item.' });
+    return sendRouteError(res, e, 'Failed to create item.');
   }
 });
 
@@ -43,8 +42,7 @@ router.patch('/items/:id', async (req, res) => {
     if (e.code === 'VALIDATION' || e.code === 'INVALID_UNIT') {
       return res.status(400).json({ message: e.message });
     }
-    console.error(e);
-    return res.status(500).json({ message: 'Failed to update item.' });
+    return sendRouteError(res, e, 'Failed to update item.');
   }
 });
 
@@ -56,8 +54,7 @@ router.delete('/items/:id', async (req, res) => {
     }
     return res.status(204).send();
   } catch (e) {
-    console.error(e);
-    return res.status(500).json({ message: 'Failed to delete item.' });
+    return sendRouteError(res, e, 'Failed to delete item.');
   }
 });
 

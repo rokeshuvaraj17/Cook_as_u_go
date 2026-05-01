@@ -1,6 +1,6 @@
 {
   "name": "mobile_ui",
-  "version": "1.0.2",
+  "version": "1.0.5",
   "main": "index.ts",
   "scripts": {
     "reverse:android": "bash scripts/android-reverse.sh",
