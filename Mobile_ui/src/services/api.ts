@@ -20,6 +20,24 @@ function readExpoPublicApiUrl(): string | null {
     return null;
   }
 }
+
+/**
+ * Optional public ScanAndSave origin for dev / tooling. Receipt preview in the app goes through the kitchen API
+ * (`POST .../api/scan/receipt-preview`); production scan traffic is proxied using `SCAN_API_URL` on the server.
+ */
+function readExpoPublicScanApiUrl(): string | null {
+  try {
+    const raw =
+      typeof process !== 'undefined' && process.env.EXPO_PUBLIC_SCAN_API_URL != null
+        ? String(process.env.EXPO_PUBLIC_SCAN_API_URL)
+        : '';
+    const trimmed = raw.trim().replace(/\/+$/, '');
+    if (!trimmed) return null;
+    return trimmed;
+  } catch {
+    return null;
+  }
+}
 const API_OVERRIDE_KITCHEN_KEY = 'kitchen_api_override';
 const API_OVERRIDE_SCAN_KEY = 'scan_api_override';
 let runtimeKitchenApiOverride: string | null = null;
@@ -173,6 +191,11 @@ export function getApiBaseUrl(): string {
 export function getScanApiBaseUrl(): string {
   if (runtimeScanApiOverride) {
     return runtimeScanApiOverride;
+  }
+  const fromEnvScan = readExpoPublicScanApiUrl();
+  if (fromEnvScan) {
+    apiDebug('getScanApiBaseUrl from EXPO_PUBLIC_SCAN_API_URL', { value: fromEnvScan, platform: Platform.OS });
+    return finalizeAndroidDevBaseUrl(fromEnvScan);
   }
   const fromKitchenHost = scanBaseFromResolvedKitchenHost();
   if (fromKitchenHost) {

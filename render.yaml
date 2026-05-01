@@ -5,7 +5,8 @@
 # Root Directory = Backend, Build = npm ci, Start = npm start, Health Check Path = /api/health,
 # and turn on Auto-Deploy for branch main.
 #
-# Receipt scan requires SCAN_API_URL pointing at a public ScanAndSave (FastAPI) deployment.
+# Receipt scan: set SCAN_API_URL on the kitchen service to your ScanAndSave origin, e.g.
+# https://cook-as-u-go-scan.onrender.com (Kitchen app calls https://cook-as-u-go.onrender.com only).
 
 services:
   - type: web

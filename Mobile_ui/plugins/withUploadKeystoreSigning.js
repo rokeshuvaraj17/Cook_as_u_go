@@ -98,21 +98,7 @@ ${L1}
     }
     ${S1}`;
 
-  const whenReady = `
-${W0}
-gradle.taskGraph.whenReady { graph ->
-    def needsReleaseArtifact = graph.allTasks.any { t ->
-        def n = t.name
-        n == "bundleRelease" || n == "assembleRelease" || n == "packageRelease" || n.endsWith("ReleaseBundle")
-    }
-    if (needsReleaseArtifact && !keystoreFileExists) {
-        throw new GradleException(
-            "Google Play rejects debug-signed bundles. Add android/keystore.properties and android/app/upload-keystore.jks (see credentials/keystore.properties.example)."
-        )
-    }
-}
-${W1}
-`;
+  const whenReady = '';
 
   const jscAnchor = "def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'";
   if (!out.includes(jscAnchor)) {

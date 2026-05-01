@@ -9,6 +9,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 export EXPO_PUBLIC_API_URL="${EXPO_PUBLIC_API_URL:-https://cook-as-u-go.onrender.com}"
+export EXPO_PUBLIC_SCAN_API_URL="${EXPO_PUBLIC_SCAN_API_URL:-https://cook-as-u-go-scan.onrender.com}"
 
 if [[ ! -f "$ROOT/android/keystore.properties" ]]; then
   echo "Missing $ROOT/android/keystore.properties" >&2

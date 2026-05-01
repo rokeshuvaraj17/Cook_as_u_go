@@ -10,7 +10,7 @@
     "start": "pkill -f \"expo start\" || true; bash scripts/android-reverse.sh || true; expo start --go --lan --port 8083",
     "start:clean": "pkill -f \"expo start\" || true; bash scripts/android-reverse.sh || true; expo start --go --lan --clear --port 8083",
     "start:localhost": "pkill -f \"expo start\" || true; bash scripts/android-reverse.sh || true; EXPO_PUBLIC_API_URL=\"http://127.0.0.1:5051\" EXPO_PUBLIC_SCAN_API_URL=\"http://127.0.0.1:8000\" expo start --go --localhost --port 8083",
-    "start:render": "pkill -f \"expo start\" || true; EXPO_PUBLIC_API_URL=\"https://cook-as-u-go.onrender.com\" expo start --go --lan --port 8083",
+    "start:render": "pkill -f \"expo start\" || true; EXPO_PUBLIC_API_URL=\"https://cook-as-u-go.onrender.com\" EXPO_PUBLIC_SCAN_API_URL=\"https://cook-as-u-go-scan.onrender.com\" expo start --go --lan --port 8083",
     "start:tunnel": "pkill -f \"expo start\" || true; expo start --go --tunnel --port 8083",
     "android": "pkill -f \"expo start\" || true; bash scripts/android-reverse.sh || true; expo start --go --lan --port 8083",
     "debug:open": "adb shell am start -a android.intent.action.VIEW -d \"exp://127.0.0.1:8083\" host.exp.exponent",
@@ -26,7 +26,8 @@
     "eas:android:production": "eas build --platform android --profile production",
     "eas:android:preview": "eas build --platform android --profile preview",
     "eas:submit:android": "eas submit --platform android --profile production",
-    "build:android:play": "bash scripts/build-android-play-release.sh"
+    "build:android:play": "bash scripts/build-android-play-release.sh",
+    "build:apk": "bash scripts/build-release-apk.sh"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -46,6 +47,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
+    "eas-cli": "^18.9.1",
     "typescript": "~5.9.2"
   },
   "private": true

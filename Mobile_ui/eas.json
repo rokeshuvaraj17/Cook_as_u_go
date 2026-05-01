@@ -16,7 +16,8 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://cook-as-u-go.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://cook-as-u-go.onrender.com",
+        "EXPO_PUBLIC_SCAN_API_URL": "https://cook-as-u-go-scan.onrender.com"
       }
     },
     "production": {
@@ -26,7 +27,8 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://cook-as-u-go.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://cook-as-u-go.onrender.com",
+        "EXPO_PUBLIC_SCAN_API_URL": "https://cook-as-u-go-scan.onrender.com"
       }
     }
   },

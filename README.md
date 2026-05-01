@@ -1,4 +1,4 @@
-﻿# Cook_as_u_go
+# Cook_as_u_go
 
 Kitchen and pantry companion: **Expo (React Native)** mobile UI, **Node/Express** kitchen API, **FastAPI** receipt scanning (ScanAndSave), and **React** web frontend.
 
